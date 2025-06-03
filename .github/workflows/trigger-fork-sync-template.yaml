@@ -1,0 +1,28 @@
+name: Trigger Fork Sync Template
+
+on:
+  workflow_call:
+    inputs:
+      forked_repo:
+        required: true
+        type: string
+      event_type:
+        required: false
+        type: string
+        default: Trigger-Fork-Sync
+
+    secrets:
+      token:
+        required: true
+
+jobs:
+  Trigger-Fork-Sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger fork sync via repository_dispatch
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.token }}
+          repository: ${{ inputs.forked_repo }}
+          event-type: ${{ inputs.event_type }}
