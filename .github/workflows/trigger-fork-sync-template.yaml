@@ -16,7 +16,7 @@ on:
         required: true
 
 jobs:
-  Trigger-Fork-Sync:
+  Trigger-Fork-Sync-Template:
     runs-on: ubuntu-latest
 
     steps:
