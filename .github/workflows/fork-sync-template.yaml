@@ -54,41 +54,39 @@ jobs:
 
       - name: Create sync branch excluding workflows
         run: |
-          set -e
-      
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       
           git checkout -B ${{ inputs.sync_branch }} origin/${{ inputs.fork_branch }}
           git fetch upstream ${{ inputs.upstream_branch }}
+      
+          # Back up fork's workflows
+          cp -r .github/workflows /tmp/workflows-backup || true
+      
+          # Merge upstream changes
           git merge --no-commit --no-ff upstream/${{ inputs.upstream_branch }} || true
       
-          # Resolve workflow merge conflicts explicitly
-          for file in $(git diff --name-only --diff-filter=U | grep '^.github/workflows/' || true); do
-            if [ -e "$file" ]; then
-              echo "Resolving workflow conflict: Keeping fork version of $file"
-              git checkout --ours "$file"
-              git add "$file"
-            else
-              echo "Resolving workflow conflict: File $file deleted in fork"
-              git rm --cached "$file" || true
-              git rm -f "$file" || true
-            fi
-          done
+          # If merge failed, check for conflicts
+          if git ls-files --unmerged | grep -q .; then
+            echo "❌ Merge conflict detected in:"
+            git ls-files --unmerged | cut -f2 | sort -u
+            exit 1
+          fi
       
-          # Clean up any untracked or unstaged workflow files
-          git restore --staged .github/workflows/ || true
-          git restore .github/workflows/ || true
-          git clean -fd .github/workflows/ || true
+          # Restore fork's workflows (overwrite upstream ones)
+          rm -rf .github/workflows
+          cp -r /tmp/workflows-backup .github/workflows || true
+          git add .github/workflows || true
       
-          # Commit only if anything is staged
+          # Commit only if changes exist
           if ! git diff --cached --quiet; then
-            git commit -m "🔄 Sync fork with upstream (excluding workflows)"
+            git commit -m "🔄 Sync fork with upstream (excluding workflows) 🤖"
           else
-            echo "No changes to commit"
+            echo "No meaningful changes to commit."
           fi
       
           git push -f origin ${{ inputs.sync_branch }}
+      
 
 
       - name: Create Pull Request to sync fork
