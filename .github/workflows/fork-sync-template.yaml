@@ -54,6 +54,13 @@ jobs:
 
       - name: Create sync branch excluding workflows
         run: |
+          # Set git user identity upfront, before any git command
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      
+          echo "Git user.name: $(git config user.name)"
+          echo "Git user.email: $(git config user.email)"
+      
           git checkout -B ${{ inputs.sync_branch }} origin/${{ inputs.fork_branch }}
           git fetch upstream ${{ inputs.upstream_branch }}
           git merge --no-commit --no-ff upstream/${{ inputs.upstream_branch }} || true
@@ -62,12 +69,6 @@ jobs:
           git restore .github/workflows/
           git clean -fd .github/workflows/
       
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      
-          echo "Git user.name: $(git config user.name)"
-          echo "Git user.email: $(git config user.email)"
-      
           if ! git diff --cached --quiet; then
             git commit -m "🔄 Sync fork with upstream ${{ inputs.upstream_repo }}:${{ inputs.upstream_branch }} 🤖"
           else
@@ -75,6 +76,7 @@ jobs:
           fi
       
           git push -f origin ${{ inputs.sync_branch }}
+
 
       - name: Create Pull Request to sync fork
         uses: peter-evans/create-pull-request@v7
