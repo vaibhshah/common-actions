@@ -57,18 +57,28 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       
-          # Create new sync branch from current fork branch
+          # Create sync branch from fork base
           git checkout -B ${{ inputs.sync_branch }} origin/${{ inputs.fork_branch }}
       
-          # Merge upstream (preserving commit history)
+          # Merge upstream into sync branch (preserves history)
           git merge --no-commit --no-ff upstream/${{ inputs.upstream_branch }} || true
       
-          # Remove any workflow folder changes (staged or unstaged)
-          git restore --staged .github/workflows/ || true
-          git restore .github/workflows/ || true
+          # Abort if non-workflow files have merge conflicts
+          conflicted_files=$(git diff --name-only --diff-filter=U | grep -v '^.github/workflows/' || true)
+          if [[ -n "$conflicted_files" ]]; then
+            echo "❌ Merge conflict in non-workflow files:"
+            echo "$conflicted_files"
+            exit 1
+          fi
+      
+          # Drop upstream changes from workflows (resolve conflicts by keeping fork version)
+          git checkout --ours .github/workflows/
+          git add .github/workflows/
+          git restore --staged .github/workflows/
+          git restore .github/workflows/
           git clean -fd .github/workflows/ || true
       
-          # Only commit if meaningful changes remain
+          # Commit if anything changed
           if ! git diff --cached --quiet; then
             git commit -m "🔄 Sync fork with upstream ${{ inputs.upstream_repo }}:${{ inputs.upstream_branch }} 🤖 (excluding workflows)"
           else
@@ -76,6 +86,7 @@ jobs:
           fi
       
           git push -f origin ${{ inputs.sync_branch }}
+
 
 
       - name: Create Pull Request to sync fork
