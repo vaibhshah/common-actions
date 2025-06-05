@@ -54,13 +54,29 @@ jobs:
 
       - name: Create sync branch excluding workflows
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      
+          # Create new sync branch from current fork branch
           git checkout -B ${{ inputs.sync_branch }} origin/${{ inputs.fork_branch }}
-          git checkout upstream/${{ inputs.upstream_branch }} -- .
-          git restore --staged .github/workflows/
-          git restore .github/workflows/
-          git clean -fd .github/workflows/
-          git commit -am "🔄 Sync fork with upstream (excluding workflows)" || echo "No changes to commit"
+      
+          # Merge upstream (preserving commit history)
+          git merge --no-commit --no-ff upstream/${{ inputs.upstream_branch }} || true
+      
+          # Remove any workflow folder changes (staged or unstaged)
+          git restore --staged .github/workflows/ || true
+          git restore .github/workflows/ || true
+          git clean -fd .github/workflows/ || true
+      
+          # Only commit if meaningful changes remain
+          if ! git diff --cached --quiet; then
+            git commit -m "🔄 Sync fork with upstream ${{ inputs.upstream_repo }}:${{ inputs.upstream_branch }} 🤖 (excluding workflows)"
+          else
+            echo "No changes to commit"
+          fi
+      
           git push -f origin ${{ inputs.sync_branch }}
+
 
       - name: Create Pull Request to sync fork
         uses: peter-evans/create-pull-request@v7
