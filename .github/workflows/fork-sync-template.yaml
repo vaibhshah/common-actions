@@ -54,39 +54,45 @@ jobs:
 
       - name: Create sync branch excluding workflows
         run: |
+          set -e
+      
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       
           git checkout -B ${{ inputs.sync_branch }} origin/${{ inputs.fork_branch }}
           git fetch upstream ${{ inputs.upstream_branch }}
       
-          # Back up fork's workflows
-          cp -r .github/workflows /tmp/workflows-backup || true
+          # Start the merge (but don't exit on failure)
+          set +e
+          git merge --no-commit --no-ff upstream/${{ inputs.upstream_branch }}
+          MERGE_EXIT_CODE=$?
+          set -e
       
-          # Merge upstream changes
-          git merge --no-commit --no-ff upstream/${{ inputs.upstream_branch }} || true
+          # Check if workflow files are conflicted and manually resolve them
+          if git ls-files --unmerged .github/workflows | grep -q .; then
+            echo "⚠️ Conflict in workflows — resolving by keeping fork version"
+            git checkout --ours .github/workflows || true
+            git add .github/workflows || true
+          fi
       
-          # If merge failed, check for conflicts
-          if git ls-files --unmerged | grep -q .; then
-            echo "❌ Merge conflict detected in:"
-            git ls-files --unmerged | cut -f2 | sort -u
+          # Check if any other files are conflicted
+          CONFLICT_FILES=$(git ls-files --unmerged | grep -v '^.github/workflows/' | cut -f2 | sort -u)
+          if [[ -n "$CONFLICT_FILES" ]]; then
+            echo "❌ Merge conflict in the following files:"
+            echo "$CONFLICT_FILES"
             exit 1
           fi
       
-          # Restore fork's workflows (overwrite upstream ones)
-          rm -rf .github/workflows
-          cp -r /tmp/workflows-backup .github/workflows || true
-          git add .github/workflows || true
-      
-          # Commit only if changes exist
+          # Commit if any changes are staged
           if ! git diff --cached --quiet; then
             git commit -m "🔄 Sync fork with upstream (excluding workflows) 🤖"
           else
-            echo "No meaningful changes to commit."
+            echo "✅ No changes to commit"
           fi
       
           git push -f origin ${{ inputs.sync_branch }}
       
+            
 
 
       - name: Create Pull Request to sync fork
