@@ -53,6 +53,10 @@ jobs:
       - name: Create sync branch based directly on upstream
         run: |
           git checkout -B ${{ inputs.sync_branch }} upstream/${{ inputs.upstream_branch }}
+
+          # Set Git identity for committing
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
           # Restore workflows from the fork
           git restore --staged .github/workflows/ || true
