@@ -68,7 +68,7 @@ jobs:
           git restore .github/workflows/ || true
           git clean -fd .github/workflows/ || true
       
-          # Set committer identity for the commit
+          # Set the git user identity before committing
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       
@@ -81,6 +81,7 @@ jobs:
       
           # Push the sync branch forcefully
           git push -f origin ${{ inputs.sync_branch }}
+
 
       - name: Create Pull Request to sync fork
         uses: peter-evans/create-pull-request@v7
