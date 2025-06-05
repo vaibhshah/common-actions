@@ -54,46 +54,13 @@ jobs:
 
       - name: Create sync branch excluding workflows
         run: |
-          set -e
-      
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      
           git checkout -B ${{ inputs.sync_branch }} origin/${{ inputs.fork_branch }}
-          git fetch upstream ${{ inputs.upstream_branch }}
-      
-          # Start the merge (but don't exit on failure)
-          set +e
-          git merge --no-commit --no-ff upstream/${{ inputs.upstream_branch }}
-          MERGE_EXIT_CODE=$?
-          set -e
-      
-          # Check if workflow files are conflicted and manually resolve them
-          if git ls-files --unmerged .github/workflows | grep -q .; then
-            echo "⚠️ Conflict in workflows — resolving by keeping fork version"
-            git checkout --ours .github/workflows || true
-            git add .github/workflows || true
-          fi
-      
-          # Check if any other files are conflicted
-          CONFLICT_FILES=$(git ls-files --unmerged | grep -v '^.github/workflows/' | cut -f2 | sort -u)
-          if [[ -n "$CONFLICT_FILES" ]]; then
-            echo "❌ Merge conflict in the following files:"
-            echo "$CONFLICT_FILES"
-            exit 1
-          fi
-      
-          # Commit if any changes are staged
-          if ! git diff --cached --quiet; then
-            git commit -m "🔄 Sync fork with upstream (excluding workflows) 🤖"
-          else
-            echo "✅ No changes to commit"
-          fi
-      
+          git checkout upstream/${{ inputs.upstream_branch }} -- .
+          git restore --staged .github/workflows/
+          git restore .github/workflows/
+          git clean -fd .github/workflows/
+          git commit -am "🔄 Sync fork with upstream (excluding workflows)" || echo "No changes to commit"
           git push -f origin ${{ inputs.sync_branch }}
-      
-            
-
 
       - name: Create Pull Request to sync fork
         uses: peter-evans/create-pull-request@v7
