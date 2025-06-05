@@ -60,10 +60,10 @@ jobs:
           # Create sync branch from fork base
           git checkout -B ${{ inputs.sync_branch }} origin/${{ inputs.fork_branch }}
       
-          # Merge upstream into sync branch (preserves history)
+          # Merge upstream branch (preserve history)
           git merge --no-commit --no-ff upstream/${{ inputs.upstream_branch }} || true
       
-          # Abort if non-workflow files have merge conflicts
+          # Detect if there are *non-workflow* conflicts. If yes, abort.
           conflicted_files=$(git diff --name-only --diff-filter=U | grep -v '^.github/workflows/' || true)
           if [[ -n "$conflicted_files" ]]; then
             echo "❌ Merge conflict in non-workflow files:"
@@ -71,14 +71,24 @@ jobs:
             exit 1
           fi
       
-          # Drop upstream changes from workflows (resolve conflicts by keeping fork version)
-          git checkout --ours .github/workflows/
-          git add .github/workflows/
-          git restore --staged .github/workflows/
-          git restore .github/workflows/
+          # Resolve ALL workflow-related conflicts by keeping fork’s version (or deletion if deleted in fork)
+          for file in $(git diff --name-only --diff-filter=U | grep '^.github/workflows/' || true); do
+            if [[ -f "$file" ]]; then
+              echo "Keeping fork's version of $file"
+              git checkout --ours "$file"
+              git add "$file"
+            else
+              echo "File $file deleted in fork; keeping it deleted"
+              git rm -f "$file"
+            fi
+          done
+      
+          # Final cleanup: unstaged/untracked workflow files
+          git restore --staged .github/workflows/ || true
+          git restore .github/workflows/ || true
           git clean -fd .github/workflows/ || true
       
-          # Commit if anything changed
+          # Commit only if there are staged changes
           if ! git diff --cached --quiet; then
             git commit -m "🔄 Sync fork with upstream ${{ inputs.upstream_repo }}:${{ inputs.upstream_branch }} 🤖 (excluding workflows)"
           else
@@ -86,8 +96,6 @@ jobs:
           fi
       
           git push -f origin ${{ inputs.sync_branch }}
-
-
 
       - name: Create Pull Request to sync fork
         uses: peter-evans/create-pull-request@v7
