@@ -54,48 +54,42 @@ jobs:
 
       - name: Create sync branch excluding workflows
         run: |
+          set -e
+      
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       
-          # Create sync branch from fork base
           git checkout -B ${{ inputs.sync_branch }} origin/${{ inputs.fork_branch }}
-      
-          # Merge upstream branch (preserve history)
+          git fetch upstream ${{ inputs.upstream_branch }}
           git merge --no-commit --no-ff upstream/${{ inputs.upstream_branch }} || true
       
-          # Detect if there are *non-workflow* conflicts. If yes, abort.
-          conflicted_files=$(git diff --name-only --diff-filter=U | grep -v '^.github/workflows/' || true)
-          if [[ -n "$conflicted_files" ]]; then
-            echo "❌ Merge conflict in non-workflow files:"
-            echo "$conflicted_files"
-            exit 1
-          fi
-      
-          # Resolve ALL workflow-related conflicts by keeping fork’s version (or deletion if deleted in fork)
+          # Resolve workflow merge conflicts explicitly
           for file in $(git diff --name-only --diff-filter=U | grep '^.github/workflows/' || true); do
-            if [[ -f "$file" ]]; then
-              echo "Keeping fork's version of $file"
+            if [ -e "$file" ]; then
+              echo "Resolving workflow conflict: Keeping fork version of $file"
               git checkout --ours "$file"
               git add "$file"
             else
-              echo "File $file deleted in fork; keeping it deleted"
-              git rm -f "$file"
+              echo "Resolving workflow conflict: File $file deleted in fork"
+              git rm --cached "$file" || true
+              git rm -f "$file" || true
             fi
           done
       
-          # Final cleanup: unstaged/untracked workflow files
+          # Clean up any untracked or unstaged workflow files
           git restore --staged .github/workflows/ || true
           git restore .github/workflows/ || true
           git clean -fd .github/workflows/ || true
       
-          # Commit only if there are staged changes
+          # Commit only if anything is staged
           if ! git diff --cached --quiet; then
-            git commit -m "🔄 Sync fork with upstream ${{ inputs.upstream_repo }}:${{ inputs.upstream_branch }} 🤖 (excluding workflows)"
+            git commit -m "🔄 Sync fork with upstream (excluding workflows)"
           else
             echo "No changes to commit"
           fi
       
           git push -f origin ${{ inputs.sync_branch }}
+
 
       - name: Create Pull Request to sync fork
         uses: peter-evans/create-pull-request@v7
