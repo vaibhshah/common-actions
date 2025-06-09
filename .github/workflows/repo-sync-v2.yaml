@@ -60,7 +60,7 @@ jobs:
           else
             gh pr create \
               --title "🔄 Sync fork with upstream \`${{ inputs.source_branch }}\` 🤖" \
-              --body "This PR syncs the forked repo: \`${fork_repo_name}\`:\`${{ inputs.destination_branch }}\` with upstream original repo: \`${source_repo_name}\`:\`${{ inputs.source_branch }}\`, preserving local workflows." \
+              --body "This PR syncs the forked repo: \`${fork_repo_name}\`:\`${{ inputs.destination_branch }}\` with its upstream repo: \`${source_repo_name}\`:\`${{ inputs.source_branch }}\`, preserving local workflows." \
               --base ${{ inputs.base_branch }} \
               --head ${{ inputs.destination_branch }}
           fi
