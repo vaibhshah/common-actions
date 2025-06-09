@@ -1,0 +1,56 @@
+# File: .github/workflows/repo-sync-v2.yaml
+
+name: Repo Sync
+
+on:
+  workflow_call:
+    inputs:
+      source_repo:
+        required: true
+        type: string
+      source_branch:
+        required: true
+        type: string
+      destination_branch:
+        required: true
+        type: string
+      base_branch:
+        required: true
+        type: string
+    secrets:
+      PAT:
+        required: true
+
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: repo-sync
+        uses: repo-sync/github-sync@v2
+        with:
+          source_repo: https://github.com/${{ inputs.source_repo }}.git
+          source_branch: ${{ inputs.source_branch }}
+          destination_branch: ${{ inputs.destination_branch }}
+          sync_tags: ""
+          github_token: ${{ secrets.PAT }}
+
+      - name: Create PR to merge upstream into fork
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          git fetch origin ${{ inputs.destination_branch }}
+          git checkout ${{ inputs.destination_branch }}
+
+          if gh pr list --head ${{ inputs.destination_branch }} --base ${{ inputs.base_branch }} --json number --jq '.[0].number' | grep -q '[0-9]'; then
+            echo "PR already exists, skipping."
+          else
+            gh pr create \
+              --title "🔄 Sync fork with upstream" \
+              --body "This PR syncs the \`${{ inputs.destination_branch }}\` branch with upstream \`${{ inputs.source_branch }}\`, preserving local workflows." \
+              --base ${{ inputs.base_branch }} \
+              --head ${{ inputs.destination_branch }}
+          fi
