@@ -59,7 +59,7 @@ jobs:
             echo "PR already exists, skipping."
           else
             gh pr create \
-              --title "🔄 Sync fork with upstream `${{ inputs.source_branch }}\` `${{ inputs.destination_branch }}\` 🤖" \
+              --title "🔄 Sync fork with upstream 🤖" \
               --body "This PR syncs the forked repo: $fork_repo_name branch: ${{ inputs.destination_branch }} with upstream original repo: $source_repo_name branch: ${{ inputs.source_branch }}" \
               --base ${{ inputs.base_branch }} \
               --head ${{ inputs.destination_branch }}
