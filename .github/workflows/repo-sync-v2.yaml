@@ -11,6 +11,9 @@ on:
       source_branch:
         required: true
         type: string
+      fork_repo:
+        required: true
+        type: string
       destination_branch:
         required: true
         type: string
@@ -42,6 +45,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
+          fork_repo="${{ inputs.fork_repo }}"
+          source_repo="${{ inputs.source_repo }}"
+      
+          # Extract repo names only
+          fork_repo_name="${fork_repo##*/}"
+          source_repo_name="${source_repo##*/}"
+
           git fetch origin ${{ inputs.destination_branch }}
           git checkout ${{ inputs.destination_branch }}
 
@@ -49,8 +59,8 @@ jobs:
             echo "PR already exists, skipping."
           else
             gh pr create \
-              --title "🔄 Sync fork with upstream" \
-              --body "This PR syncs the \`${{ inputs.destination_branch }}\` branch with upstream \`${{ inputs.source_branch }}\`, preserving local workflows." \
+              --title "🔄 Sync fork with upstream `${{ inputs.source_branch }}\` `${{ inputs.destination_branch }}\` 🤖" \
+              --body "This PR syncs the forked repo: $fork_repo_name branch: ${{ inputs.destination_branch }} with upstream original repo: $source_repo_name branch: ${{ inputs.source_branch }}" \
               --base ${{ inputs.base_branch }} \
               --head ${{ inputs.destination_branch }}
           fi
