@@ -59,7 +59,7 @@ jobs:
             echo "PR already exists, skipping."
           else
             gh pr create \
-              --title "🔄 Sync fork with upstream \`${{ inputs.source_branch }}\` 🤖" \
+              --title "feat(BSSENG-8029): Sync fork with upstream \`${{ inputs.source_branch }}\` 🤖 🔄" \
               --body "This PR syncs the forked repo: \`${fork_repo_name}\`:\`${{ inputs.destination_branch }}\` with its upstream repo: \`${source_repo_name}\`:\`${{ inputs.source_branch }}\`, preserving local workflows." \
               --base ${{ inputs.base_branch }} \
               --head ${{ inputs.destination_branch }}
